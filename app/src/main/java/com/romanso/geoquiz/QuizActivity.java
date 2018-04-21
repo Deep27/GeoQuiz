@@ -7,11 +7,12 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
-import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.romanso.geoquiz.model.Question;
+
+import java.util.Arrays;
 
 public class QuizActivity extends AppCompatActivity {
 
@@ -23,6 +24,7 @@ public class QuizActivity extends AppCompatActivity {
     private static final int REQUEST_CODE_CHEAT = 0;
 
     private boolean mIsCheater;
+    private int mCheckedQuestions = 0;
 
     // добавление полей виджетов
     private Button mTrueButton;
@@ -82,9 +84,9 @@ public class QuizActivity extends AppCompatActivity {
         updateQuestion();
 
         mTrueButton = findViewById(R.id.true_button);
-        mTrueButton.setOnClickListener(view -> checkAnswer(true));
-
         mFalseButton = findViewById(R.id.false_button);
+        disableButtonsIfQuestionChecked();
+        mTrueButton.setOnClickListener(view -> checkAnswer(true));
         mFalseButton.setOnClickListener(view -> checkAnswer(false));
 
         mNextButton = findViewById(R.id.next_button);
@@ -135,11 +137,21 @@ public class QuizActivity extends AppCompatActivity {
         mCurrentIndex = (mCurrentIndex + 1) % mQuestionBank.length;
         mIsCheater = false;
         updateQuestion();
+        if (mQuestionBank[mCurrentIndex].isChecked()) {
+            setButtonsEnabled(false);
+        } else {
+            setButtonsEnabled(true);
+        }
     };
 
     private View.OnClickListener prevButtonListener = view -> {
         mCurrentIndex = (mCurrentIndex - 1 + mQuestionBank.length) % mQuestionBank.length;
         updateQuestion();
+        if (mQuestionBank[mCurrentIndex].isChecked()) {
+            setButtonsEnabled(false);
+        } else {
+            setButtonsEnabled(true);
+        }
     };
 
     private void updateQuestion() {
@@ -150,17 +162,58 @@ public class QuizActivity extends AppCompatActivity {
     private void checkAnswer(boolean userPressedTrue) {
         boolean answerIsTrue = mQuestionBank[mCurrentIndex].isAnswerTrue();
 
-        int messageResId = 0;
+        mQuestionBank[mCurrentIndex].setChecked(true);
+        mCheckedQuestions += 1;
+        setButtonsEnabled(false);
+
+        int messageResId;
 
         if (mIsCheater) {
             messageResId = R.string.judgment_toast;
         } else {
-            messageResId = userPressedTrue == answerIsTrue ? R.string.correct_toast
-                    : R.string.incorrect_toast;
+            if (userPressedTrue == answerIsTrue) {
+                messageResId = R.string.correct_toast;
+                mQuestionBank[mCurrentIndex].setCorrectlyAnswered(true);
+            } else {
+                messageResId = R.string.incorrect_toast;
+                mQuestionBank[mCurrentIndex].setCorrectlyAnswered(false);
+            }
         }
-
 
         // отображение тоста
         Toast.makeText(this, messageResId, Toast.LENGTH_SHORT).show();
+
+        if (mCheckedQuestions == mQuestionBank.length) {
+            finishGame();
+        }
+    }
+
+    private void setButtonsEnabled(boolean enabled) {
+        mTrueButton.setEnabled(enabled);
+        mFalseButton.setEnabled(enabled);
+        mCheatButton.setEnabled(enabled);
+    }
+
+    private void disableButtonsIfQuestionChecked() {
+        // @TODO fix - always false
+        Log.d(TAG, mQuestionBank[mCurrentIndex].isChecked() + "");
+        if (mQuestionBank[mCurrentIndex].isChecked()) {
+            setButtonsEnabled(false);
+        }
+    }
+
+    private void finishGame() {
+        long correctAnswersAmount = Arrays.stream(mQuestionBank)
+                .filter(Question::isCorrectlyAnswered)
+                .count();
+
+        double correctAnswersPercentage = ((double)correctAnswersAmount) / mQuestionBank.length * 100;
+
+        String result = "You've completed the game!\n" +
+                "Correct answers:\n" +
+                correctAnswersAmount + " of " + mQuestionBank.length + "\n" +
+                correctAnswersPercentage + "% of 100%";
+
+        Toast.makeText(this, result, Toast.LENGTH_LONG).show();
     }
 }

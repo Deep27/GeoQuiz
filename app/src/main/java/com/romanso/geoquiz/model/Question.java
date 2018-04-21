@@ -4,6 +4,8 @@ public class Question {
 
     private int mTextResId;
     private boolean mAnswerTrue;
+    private boolean mChecked;
+    private boolean mCorrectlyAnswered;
 
     public Question(int textResId, boolean answerTrue) {
         mTextResId = textResId;
@@ -24,5 +26,21 @@ public class Question {
 
     public void setAnswerTrue(boolean answerTrue) {
         mAnswerTrue = answerTrue;
+    }
+
+    public boolean isChecked() {
+        return mChecked;
+    }
+
+    public void setChecked(boolean checked) {
+        mChecked = checked;
+    }
+
+    public boolean isCorrectlyAnswered() {
+        return mCorrectlyAnswered;
+    }
+
+    public void setCorrectlyAnswered(boolean correctlyAnswered) {
+        mCorrectlyAnswered = correctlyAnswered;
     }
 }
