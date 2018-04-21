@@ -1,5 +1,6 @@
 package com.romanso.geoquiz;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
@@ -18,6 +19,10 @@ public class QuizActivity extends AppCompatActivity {
     private static final String TAG = "QuizActivity";
     // константа - ключ для сохранения индекса текущего индекса вопроса
     private static final String KEY_INDEX = "index";
+    // код запроса для активности CheatActivity
+    private static final int REQUEST_CODE_CHEAT = 0;
+
+    private boolean mIsCheater;
 
     // добавление полей виджетов
     private Button mTrueButton;
@@ -46,6 +51,21 @@ public class QuizActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (resultCode != Activity.RESULT_OK) {
+            return;
+        }
+        if (requestCode == REQUEST_CODE_CHEAT) {
+            if (data == null) {
+                return;
+            }
+            mIsCheater = CheatActivity.wasAnswerShown(data);
+        }
+    }
+
+    @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Log.d(TAG, "onCreate(Bundle) called");
@@ -58,7 +78,7 @@ public class QuizActivity extends AppCompatActivity {
         // получение ссылки на виджет
         mQuestionTextView = findViewById(R.id.question_text_view);
         // назначение слушателя для виджета
-        mQuestionTextView.setOnClickListener(nextQuestionListener);
+        mQuestionTextView.setOnClickListener(nextButtonListener);
         updateQuestion();
 
         mTrueButton = findViewById(R.id.true_button);
@@ -68,16 +88,16 @@ public class QuizActivity extends AppCompatActivity {
         mFalseButton.setOnClickListener(view -> checkAnswer(false));
 
         mNextButton = findViewById(R.id.next_button);
-        mNextButton.setOnClickListener(nextQuestionListener);
+        mNextButton.setOnClickListener(nextButtonListener);
 
         mPrevButton = findViewById(R.id.prev_button);
-        mPrevButton.setOnClickListener(prevQuestionListener);
+        mPrevButton.setOnClickListener(prevButtonListener);
 
         mCheatButton = findViewById(R.id.cheat_button);
         mCheatButton.setOnClickListener(view -> {
             boolean answerIsTrue = mQuestionBank[mCurrentIndex].isAnswerTrue();
             Intent intent = CheatActivity.newIntent(QuizActivity.this, answerIsTrue);
-            startActivity(intent);
+            startActivityForResult(intent, REQUEST_CODE_CHEAT);
         });
     }
 
@@ -111,12 +131,13 @@ public class QuizActivity extends AppCompatActivity {
         Log.d(TAG, "onDestroy() called");
     }
 
-    private View.OnClickListener nextQuestionListener = view -> {
+    private View.OnClickListener nextButtonListener = view -> {
         mCurrentIndex = (mCurrentIndex + 1) % mQuestionBank.length;
+        mIsCheater = false;
         updateQuestion();
     };
 
-    private View.OnClickListener prevQuestionListener = view -> {
+    private View.OnClickListener prevButtonListener = view -> {
         mCurrentIndex = (mCurrentIndex - 1 + mQuestionBank.length) % mQuestionBank.length;
         updateQuestion();
     };
@@ -129,8 +150,15 @@ public class QuizActivity extends AppCompatActivity {
     private void checkAnswer(boolean userPressedTrue) {
         boolean answerIsTrue = mQuestionBank[mCurrentIndex].isAnswerTrue();
 
-        int messageResId =
-                userPressedTrue == answerIsTrue ? R.string.correct_toast : R.string.incorrect_toast;
+        int messageResId = 0;
+
+        if (mIsCheater) {
+            messageResId = R.string.judgment_toast;
+        } else {
+            messageResId = userPressedTrue == answerIsTrue ? R.string.correct_toast
+                    : R.string.incorrect_toast;
+        }
+
 
         // отображение тоста
         Toast.makeText(this, messageResId, Toast.LENGTH_SHORT).show();
