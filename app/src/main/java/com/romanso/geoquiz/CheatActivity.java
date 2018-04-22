@@ -2,6 +2,8 @@ package com.romanso.geoquiz;
 
 import android.content.Context;
 import android.content.Intent;
+import android.os.PersistableBundle;
+import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -14,6 +16,7 @@ public class CheatActivity extends AppCompatActivity {
 
     private static final String EXTRA_ANSWER_IS_TRUE = "com.romanso.geoquiz.answer_is_true";
     private static final String EXTRA_ANSWER = "com.romanso.geoquiz.answer";
+    public static final String EXTRA_RESULT_KEY = "com.romanso.geoquiz.result";
 
     private static final String KEY_ANSWER = "answer";
 
@@ -23,10 +26,13 @@ public class CheatActivity extends AppCompatActivity {
     private TextView mAnswerTextView;
     private Button mShowAnswerButton;
 
+    private Intent mResultIntent;
+
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         outState.putInt(KEY_ANSWER, mAnswer);
+        outState.putParcelable(EXTRA_RESULT_KEY, mResultIntent);
     }
 
     @Override
@@ -36,7 +42,13 @@ public class CheatActivity extends AppCompatActivity {
 
         if (savedInstanceState != null) {
             mAnswer = savedInstanceState.getInt(KEY_ANSWER, 0);
+            mResultIntent = savedInstanceState.getParcelable(EXTRA_RESULT_KEY);
+            if (mResultIntent != null)
+                setResult(mResultIntent.getIntExtra(EXTRA_RESULT_KEY, RESULT_CANCELED), mResultIntent);
             Log.d(TAG, mAnswer + "");
+        }
+        else {
+            mResultIntent = new Intent();
         }
 
         mAnswerIsTrue = getIntent().getBooleanExtra(EXTRA_ANSWER_IS_TRUE, false);
@@ -64,9 +76,9 @@ public class CheatActivity extends AppCompatActivity {
     }
 
     private void setAnswerShownResult() {
-        Intent data = new Intent();
-        data.putExtra(EXTRA_ANSWER, mAnswer);
-        setResult(RESULT_OK, data);
+        mResultIntent.putExtra(EXTRA_ANSWER, mAnswer);
+        mResultIntent.putExtra(EXTRA_RESULT_KEY, RESULT_OK);
+        setResult(RESULT_OK, mResultIntent);
     }
 
     public static int getAnswer(Intent result) {
