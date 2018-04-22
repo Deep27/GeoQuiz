@@ -24,11 +24,14 @@ public class QuizActivity extends AppCompatActivity {
     private static final String KEY_QUESTIONS_ARRAY = "questions_array";
     private static final String KEY_CHECKED_QUESTIONS_AMOUNT = "checked_questions_amount";
     private static final String KEY_SHOWN_ANSWER = "shown_answer";
+    private static final String KEY_TIMES_CHEATED = "times_cheated";
     // код запроса для активности CheatActivity
     private static final int REQUEST_CODE_CHEAT = 0;
+    private static final int MAX_CHEATS = 3;
 
     private int mShownAnswer;
     private int mCheckedQuestionsAmount = 0;
+    private int mTimesCheated = 0;
 
     // добавление полей виджетов
     private Button mTrueButton;
@@ -37,6 +40,7 @@ public class QuizActivity extends AppCompatActivity {
     private Button mPrevButton;
     private Button mCheatButton;
     private TextView mQuestionTextView;
+    private TextView mCheatsLeftTextView;
 
     private Question[] mQuestionBank = new Question[] {
             new Question(R.string.question_australia, true),
@@ -57,6 +61,7 @@ public class QuizActivity extends AppCompatActivity {
         outState.putInt(KEY_CHECKED_QUESTIONS_AMOUNT, mCheckedQuestionsAmount);
         outState.putParcelableArray(KEY_QUESTIONS_ARRAY, mQuestionBank);
         outState.putInt(KEY_SHOWN_ANSWER, mShownAnswer);
+        outState.putInt(KEY_TIMES_CHEATED, mTimesCheated);
     }
 
     @Override
@@ -80,6 +85,9 @@ public class QuizActivity extends AppCompatActivity {
                 mCheatButton.setEnabled(false);
                 mQuestionBank[mCurrentIndex].setCheated(true);
                 mShownAnswer = 0;
+                mTimesCheated += 1;
+                String cheatsLeft = getString(R.string.cheats_left) + (MAX_CHEATS - mTimesCheated);
+                mCheatsLeftTextView.setText(cheatsLeft);
             }
         }
     }
@@ -95,6 +103,7 @@ public class QuizActivity extends AppCompatActivity {
             mQuestionBank = (Question[]) savedInstanceState.getParcelableArray(KEY_QUESTIONS_ARRAY);
             mCheckedQuestionsAmount = savedInstanceState.getInt(KEY_CHECKED_QUESTIONS_AMOUNT, 0);
             mShownAnswer = savedInstanceState.getInt(KEY_SHOWN_ANSWER, 0);
+            mTimesCheated = savedInstanceState.getInt(KEY_TIMES_CHEATED, 0);
         }
 
         // получение ссылки на виджет
@@ -123,6 +132,10 @@ public class QuizActivity extends AppCompatActivity {
 
         mPrevButton = findViewById(R.id.prev_button);
         mPrevButton.setOnClickListener(prevButtonListener);
+
+        mCheatsLeftTextView = findViewById(R.id.cheats_left_text_view);
+        String cheatsLeft = getString(R.string.cheats_left) + (MAX_CHEATS - mTimesCheated);
+        mCheatsLeftTextView.setText(cheatsLeft);
     }
 
     @Override
@@ -229,7 +242,11 @@ public class QuizActivity extends AppCompatActivity {
             mCheatButton.setEnabled(false);
         } else {
             Log.d(TAG, "enableng cheat button");
-            mCheatButton.setEnabled(true);
+            if (mTimesCheated < MAX_CHEATS) {
+                mCheatButton.setEnabled(true);
+            } else {
+                mCheatButton.setEnabled(false);
+            }
         }
     }
 

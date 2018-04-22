@@ -8,6 +8,12 @@
     android:layout_height="match_parent">
 
     <TextView
+        android:id="@+id/cheats_left_text_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:padding="24dp"/>
+
+    <TextView
         android:id="@+id/question_text_view"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
