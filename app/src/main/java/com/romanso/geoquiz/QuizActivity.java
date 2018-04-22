@@ -12,6 +12,7 @@ import android.widget.Toast;
 
 import com.romanso.geoquiz.model.Question;
 
+import java.text.DecimalFormat;
 import java.util.Arrays;
 
 public class QuizActivity extends AppCompatActivity {
@@ -20,11 +21,14 @@ public class QuizActivity extends AppCompatActivity {
     private static final String TAG = "QuizActivity";
     // константа - ключ для сохранения индекса текущего индекса вопроса
     private static final String KEY_INDEX = "index";
+    private static final String KEY_QUESTIONS_ARRAY = "questions_array";
+    private static final String KEY_CHECKED_QUESTIONS_AMOUNT = "checked_questions_amount";
+    private static final String KEY_SHOWN_ANSWER = "shown_answer";
     // код запроса для активности CheatActivity
     private static final int REQUEST_CODE_CHEAT = 0;
 
-    private boolean mIsCheater;
-    private int mCheckedQuestions = 0;
+    private int mShownAnswer;
+    private int mCheckedQuestionsAmount = 0;
 
     // добавление полей виджетов
     private Button mTrueButton;
@@ -50,20 +54,34 @@ public class QuizActivity extends AppCompatActivity {
         super.onSaveInstanceState(outState);
         Log.i(TAG, "onSaveInstanceState");
         outState.putInt(KEY_INDEX, mCurrentIndex);
+        outState.putInt(KEY_CHECKED_QUESTIONS_AMOUNT, mCheckedQuestionsAmount);
+        outState.putParcelableArray(KEY_QUESTIONS_ARRAY, mQuestionBank);
+        outState.putInt(KEY_SHOWN_ANSWER, mShownAnswer);
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
+        // @TODO если повернуть устройство в активности CheatActivity, то результат != RESULT_OK
         if (resultCode != Activity.RESULT_OK) {
+            Log.d(TAG, "CheatActivity result is not OK");
             return;
         }
         if (requestCode == REQUEST_CODE_CHEAT) {
+            Log.d(TAG, "request code for cheat activity: REQUEST_CODE_CHEAT");
             if (data == null) {
+                Log.d(TAG, "data is null from CheatActivity");
                 return;
             }
-            mIsCheater = CheatActivity.wasAnswerShown(data);
+            mShownAnswer = CheatActivity.getAnswer(data);
+            Log.d(TAG, "got cheating result: " + mShownAnswer);
+            if (mShownAnswer != 0) {
+                Log.d(TAG, mShownAnswer + "");
+                mCheatButton.setEnabled(false);
+                mQuestionBank[mCurrentIndex].setCheated(true);
+                mShownAnswer = 0;
+            }
         }
     }
 
@@ -75,6 +93,9 @@ public class QuizActivity extends AppCompatActivity {
 
         if (savedInstanceState != null) {
             mCurrentIndex = savedInstanceState.getInt(KEY_INDEX, 0);
+            mQuestionBank = (Question[]) savedInstanceState.getParcelableArray(KEY_QUESTIONS_ARRAY);
+            mCheckedQuestionsAmount = savedInstanceState.getInt(KEY_CHECKED_QUESTIONS_AMOUNT, 0);
+            mShownAnswer = savedInstanceState.getInt(KEY_SHOWN_ANSWER, 0);
         }
 
         // получение ссылки на виджет
@@ -85,22 +106,24 @@ public class QuizActivity extends AppCompatActivity {
 
         mTrueButton = findViewById(R.id.true_button);
         mFalseButton = findViewById(R.id.false_button);
-        disableButtonsIfQuestionChecked();
+        mCheatButton = findViewById(R.id.cheat_button);
+        setButtonsClickable();
         mTrueButton.setOnClickListener(view -> checkAnswer(true));
         mFalseButton.setOnClickListener(view -> checkAnswer(false));
+        if (mQuestionBank[mCurrentIndex].isCheated()) {
+            mCheatButton.setEnabled(false);
+        }
+        mCheatButton.setOnClickListener(view -> {
+            boolean answerIsTrue = mQuestionBank[mCurrentIndex].isAnswerTrue();
+            Intent intent = CheatActivity.newIntent(QuizActivity.this, answerIsTrue);
+            startActivityForResult(intent, REQUEST_CODE_CHEAT);
+        });
 
         mNextButton = findViewById(R.id.next_button);
         mNextButton.setOnClickListener(nextButtonListener);
 
         mPrevButton = findViewById(R.id.prev_button);
         mPrevButton.setOnClickListener(prevButtonListener);
-
-        mCheatButton = findViewById(R.id.cheat_button);
-        mCheatButton.setOnClickListener(view -> {
-            boolean answerIsTrue = mQuestionBank[mCurrentIndex].isAnswerTrue();
-            Intent intent = CheatActivity.newIntent(QuizActivity.this, answerIsTrue);
-            startActivityForResult(intent, REQUEST_CODE_CHEAT);
-        });
     }
 
     @Override
@@ -135,23 +158,14 @@ public class QuizActivity extends AppCompatActivity {
 
     private View.OnClickListener nextButtonListener = view -> {
         mCurrentIndex = (mCurrentIndex + 1) % mQuestionBank.length;
-        mIsCheater = false;
         updateQuestion();
-        if (mQuestionBank[mCurrentIndex].isChecked()) {
-            setButtonsEnabled(false);
-        } else {
-            setButtonsEnabled(true);
-        }
+        setButtonsClickable();
     };
 
     private View.OnClickListener prevButtonListener = view -> {
         mCurrentIndex = (mCurrentIndex - 1 + mQuestionBank.length) % mQuestionBank.length;
         updateQuestion();
-        if (mQuestionBank[mCurrentIndex].isChecked()) {
-            setButtonsEnabled(false);
-        } else {
-            setButtonsEnabled(true);
-        }
+        setButtonsClickable();
     };
 
     private void updateQuestion() {
@@ -163,13 +177,15 @@ public class QuizActivity extends AppCompatActivity {
         boolean answerIsTrue = mQuestionBank[mCurrentIndex].isAnswerTrue();
 
         mQuestionBank[mCurrentIndex].setChecked(true);
-        mCheckedQuestions += 1;
+        mCheckedQuestionsAmount += 1;
         setButtonsEnabled(false);
 
         int messageResId;
 
-        if (mIsCheater) {
+        if (mQuestionBank[mCurrentIndex].isCheated()) {
             messageResId = R.string.judgment_toast;
+            mQuestionBank[mCurrentIndex].setCorrectlyAnswered(false);
+            mQuestionBank[mCurrentIndex].setCheated(true);
         } else {
             if (userPressedTrue == answerIsTrue) {
                 messageResId = R.string.correct_toast;
@@ -183,7 +199,7 @@ public class QuizActivity extends AppCompatActivity {
         // отображение тоста
         Toast.makeText(this, messageResId, Toast.LENGTH_SHORT).show();
 
-        if (mCheckedQuestions == mQuestionBank.length) {
+        if (mCheckedQuestionsAmount == mQuestionBank.length) {
             finishGame();
         }
     }
@@ -194,11 +210,27 @@ public class QuizActivity extends AppCompatActivity {
         mCheatButton.setEnabled(enabled);
     }
 
-    private void disableButtonsIfQuestionChecked() {
-        // @TODO fix - always false
-        Log.d(TAG, mQuestionBank[mCurrentIndex].isChecked() + "");
+    private void setButtonsClickable() {
         if (mQuestionBank[mCurrentIndex].isChecked()) {
-            setButtonsEnabled(false);
+            Log.d(TAG, "disabling all buttons");
+            mTrueButton.setEnabled(false);
+            mFalseButton.setEnabled(false);
+            mCheatButton.setEnabled(false);
+        } else {
+            Log.d(TAG, "enabling all buttons");
+            mTrueButton.setEnabled(true);
+            mFalseButton.setEnabled(true);
+            setCheatButtonClickabilityIfQuestionCheated();
+        }
+    }
+
+    private void setCheatButtonClickabilityIfQuestionCheated() {
+        if (mQuestionBank[mCurrentIndex].isCheated())  {
+            Log.d(TAG, "disabling cheat button");
+            mCheatButton.setEnabled(false);
+        } else {
+            Log.d(TAG, "enableng cheat button");
+            mCheatButton.setEnabled(true);
         }
     }
 
@@ -208,11 +240,12 @@ public class QuizActivity extends AppCompatActivity {
                 .count();
 
         double correctAnswersPercentage = ((double)correctAnswersAmount) / mQuestionBank.length * 100;
+        DecimalFormat df = new DecimalFormat("#.##");
 
         String result = "You've completed the game!\n" +
                 "Correct answers:\n" +
                 correctAnswersAmount + " of " + mQuestionBank.length + "\n" +
-                correctAnswersPercentage + "% of 100%";
+                df.format(correctAnswersPercentage) + "% of 100%";
 
         Toast.makeText(this, result, Toast.LENGTH_LONG).show();
     }
