@@ -3,7 +3,7 @@ package com.romanso.geoquiz.model;
 import android.os.Parcel;
 import android.os.Parcelable;
 
-public class Question implements Parcelable{
+public class Question implements Parcelable {
 
     private int mTextResId;
     private boolean mAnswerTrue;

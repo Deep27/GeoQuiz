@@ -63,7 +63,6 @@ public class QuizActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
-        // @TODO если повернуть устройство в активности CheatActivity, то результат != RESULT_OK
         if (resultCode != Activity.RESULT_OK) {
             Log.d(TAG, "CheatActivity result is not OK");
             return;
